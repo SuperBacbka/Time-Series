@@ -108,17 +108,22 @@ if st.sidebar.button("📊 Построить прогноз"):
     st.success(f"💰 Минимальная цена: **{int(min_row['Прогноз'])} ₽** — 📅 дата: **{min_row['dt'].strftime('%d.%m.%Y')}**")
     st.dataframe(forecast_df.set_index("dt"))
 
-    # === РЕКОМЕНДАЦИЯ ПО ЗАКУПКЕ ===
-    forecast_series = forecast_df["Прогноз"].values
-    buy_weeks = horizon  # по умолчанию — весь горизонт
+    min_date = min_row["dt"]
+    min_price = min_row["Прогноз"]
 
-    for i in range(1, len(forecast_series) - 1):
-        if forecast_series[i] < forecast_series[i - 1] and forecast_series[i] < forecast_series[i + 1]:
-            buy_weeks = i + 1
-            break
+    future_after_min = forecast_df[forecast_df['dt'] > min_date]
+    increased_rows = future_after_min[future_after_min['Прогноз'] > min_price]
 
-    buy_date = forecast_df.iloc[buy_weeks - 1]["dt"]
-    st.info(f"🛒 **Рекомендация:** Закупить арматуру на **{buy_weeks} недель(и)** вперёд до **{buy_date.strftime('%d.%m.%Y')}**, чтобы избежать повышения цен.")
-
-    # === КНОПКА СКАЧИВАНИЯ ===
-    buffer = io.BytesIO
+    if not increased_rows.empty:
+        next_increase_date = increased_rows.iloc[0]["dt"]
+        weeks_diff = (next_increase_date - min_date).days // 7
+        st.info(
+            f"🛒 **Рекомендация:** После минимальной цены, зафиксированной на {min_date.strftime('%d.%m.%Y')}, "
+            f"цена повышается на {next_increase_date.strftime('%d.%m.%Y')}. Рекомендуется закупать арматуру на {weeks_diff} недель(ю)."
+        )
+    else:
+        last_date = forecast_df["dt"].max()
+        weeks_diff = (last_date - min_date).days // 7
+        st.info(
+            f"🛒 **Рекомендация:** После {min_date.strftime('%d.%m.%Y')} повышения цены не наблюдается до конца прогноза. "
+            f"Остаток прогноза составляет  {weeks_diff} недель(ю).")
